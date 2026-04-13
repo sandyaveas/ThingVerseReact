@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ChevronLeft, Loader2 } from "lucide-react";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 
 export default function DeviceDetail() {
@@ -18,8 +18,20 @@ export default function DeviceDetail() {
   const [loading, setLoading] = useState(true);
   const [loadingActivities, setLoadingActivities] = useState(false);
   const [showActivities, setShowActivities] = useState(false);
+  
+  // Router Alerts State
   const [routerAlerts, setRouterAlerts] = useState<RouterAlert[]>([]);
+  const [alertsPageIndex, setAlertsPageIndex] = useState(0);
+  const [alertsPageSize, setAlertsPageSize] = useState(10);
+  const [alertsSortColumn, setAlertsSortColumn] = useState<string | null>(null);
+  const [alertsSortOrder, setAlertsSortOrder] = useState<string | null>(null);
+
+  // SIM Activities State
   const [simActivities, setSimActivities] = useState<SIMActivity[]>([]);
+  const [simPageIndex, setSimPageIndex] = useState(0);
+  const [simPageSize, setSimPageSize] = useState(10);
+  const [simSortColumn, setSimSortColumn] = useState<string | null>(null);
+  const [simSortOrder, setSimSortOrder] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchDeviceDetail = async () => {
@@ -39,29 +51,108 @@ export default function DeviceDetail() {
     fetchDeviceDetail();
   }, [deviceId]);
 
-  const handleLoadActivities = async () => {
-    setLoadingActivities(true);
-    try {
-      if (deviceId) {
-        const [alerts, sims] = await Promise.all([
-          getRouterAlerts(deviceId),
-          getSIMActivities(deviceId)
-        ]);
-        setRouterAlerts(alerts);
-        setSimActivities(sims);
-      }
-      setShowActivities(true);
-    } catch (error) {
-      console.error("Failed to load activities:", error);
-    } finally {
-      setLoadingActivities(false);
+  // Fetch Router Alerts
+  useEffect(() => {
+    if (showActivities && deviceId) {
+      const fetchAlerts = async () => {
+        try {
+          const alerts = await getRouterAlerts(
+            deviceId, 
+            alertsPageIndex, 
+            alertsPageSize, 
+            alertsSortColumn, 
+            alertsSortOrder
+          );
+          setRouterAlerts(alerts);
+        } catch (error) {
+          console.error("Failed to fetch alerts:", error);
+        }
+      };
+      fetchAlerts();
     }
+  }, [showActivities, deviceId, alertsPageIndex, alertsPageSize, alertsSortColumn, alertsSortOrder]);
+
+  // Fetch SIM Activities
+  useEffect(() => {
+    if (showActivities && deviceId) {
+      const fetchSims = async () => {
+        try {
+          const sims = await getSIMActivities(
+            deviceId, 
+            simPageIndex, 
+            simPageSize, 
+            simSortColumn, 
+            simSortOrder
+          );
+          setSimActivities(sims);
+        } catch (error) {
+          console.error("Failed to fetch SIM activities:", error);
+        }
+      };
+      fetchSims();
+    }
+  }, [showActivities, deviceId, simPageIndex, simPageSize, simSortColumn, simSortOrder]);
+
+  const handleLoadActivities = () => {
+    setShowActivities(true);
   };
 
-  const SummaryItem = ({ label, value }: { label: string, value: string | null | undefined }) => (
-    <div className="flex flex-col space-y-1">
-      <span className="text-xs font-bold text-slate-900 uppercase tracking-tight">{label}:</span>
-      <span className="text-sm text-slate-600">{value || "-"}</span>
+  const handleAlertsSort = (column: string) => {
+    if (alertsSortColumn === column) {
+      setAlertsSortOrder(alertsSortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setAlertsSortColumn(column);
+      setAlertsSortOrder("asc");
+    }
+    setAlertsPageIndex(0);
+  };
+
+  const handleSimSort = (column: string) => {
+    if (simSortColumn === column) {
+      setSimSortOrder(simSortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSimSortColumn(column);
+      setSimSortOrder("asc");
+    }
+    setSimPageIndex(0);
+  };
+
+  const alertsTotalRecords = routerAlerts.length > 0 ? routerAlerts[0].totalRows : 0;
+  const alertsTotalPages = Math.ceil(alertsTotalRecords / alertsPageSize);
+
+  const simTotalRecords = simActivities.length > 0 ? simActivities[0].totalRows : 0;
+  const simTotalPages = Math.ceil(simTotalRecords / simPageSize);
+
+  const SummaryCard = ({ title, children }: { title: string, children: React.ReactNode }) => (
+    <Card className="border-slate-200 shadow-sm overflow-hidden h-full">
+      <CardHeader className="bg-slate-100 border-b border-slate-200 py-2 px-4">
+        <CardTitle className="text-sm font-bold text-slate-700">{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="p-4 space-y-2">
+        {children}
+      </CardContent>
+    </Card>
+  );
+
+  const SummaryRow = ({ label, value, customValue }: { label: string, value?: string | null | undefined, customValue?: React.ReactNode }) => (
+    <div className="flex items-start text-sm">
+      <span className="font-bold text-slate-900 w-48 shrink-0">{label}:</span>
+      <span className="text-slate-600 flex-1">
+        {customValue ? customValue : (value || "-")}
+      </span>
+    </div>
+  );
+
+  const StatusBreadcrumb = ({ items, activeIndex }: { items: string[], activeIndex: number }) => (
+    <div className="flex items-center gap-1 text-[11px] font-medium">
+      {items.map((item, i) => (
+        <div key={item} className="flex items-center">
+          <span className={i === activeIndex ? "text-green-600 font-bold" : "text-slate-400"}>
+            {item}
+          </span>
+          {i < items.length - 1 && <span className="text-slate-300 mx-1">&gt;</span>}
+        </div>
+      ))}
     </div>
   );
 
@@ -95,51 +186,82 @@ export default function DeviceDetail() {
 
       <div className="flex justify-between items-center">
         <h1 className="text-xl font-bold text-slate-800">Activity View</h1>
-        <Button variant="outline" size="sm" onClick={() => navigate(-1)} className="bg-[#0089D1] text-white hover:bg-[#0077B5] border-none h-8 px-4">
-          <ChevronLeft className="h-4 w-4 mr-1" /> Back
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => navigate(-1)} 
+          className="bg-[#6366f1] text-white hover:bg-[#4f46e5] border-none h-8 px-6 rounded-md"
+        >
+          Back
         </Button>
       </div>
 
       <Card className="border-slate-200 shadow-sm">
-        <CardHeader className="bg-slate-50 border-b border-slate-200 py-3">
-          <CardTitle className="text-sm font-bold uppercase text-slate-900">Summary:</CardTitle>
+        <CardHeader className="bg-white border-b border-slate-100 py-3">
+          <CardTitle className="text-base font-bold text-slate-900">Summary:</CardTitle>
         </CardHeader>
-        <CardContent className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-4">
-            <SummaryItem label="MAC" value={device.mac} />
-            <SummaryItem label="SIM-1 Service Plan" value={device.siM1ServicePlan} />
-            <SummaryItem label="Device Serial Number" value={device.deviceSerialNumber} />
-            <SummaryItem label="ICCID-1 Provisioning Date Time" value={device.siM1ProvisioningDate ? new Date(device.siM1ProvisioningDate).toLocaleString() : "-"} />
-            <SummaryItem label="Last Message Date Time" value={device.lastMessageReceivedDate ? new Date(device.lastMessageReceivedDate).toLocaleString() : "-"} />
-            <SummaryItem label="ASN Inserted Date Time" value={device.asnInsertedDate ? new Date(device.asnInsertedDate).toLocaleString() : "-"} />
-            <SummaryItem label="Product Name" value={device.productName} />
-            <SummaryItem label="ICCID-2" value={device.siM2} />
-            <SummaryItem label="Device Model" value={device.deviceModel} />
-            <SummaryItem label="Carrier-2 Name" value={device.carrier2Name} />
-            <SummaryItem label="Router Online" value={device.routerStatus} />
-            <SummaryItem label="SIM-2 IMSI" value={device.siM2Imsi} />
-            <SummaryItem label="Device Status" value={device.deviceStatus} />
-            <SummaryItem label="Packing Date Time" value={device.packingDate ? new Date(device.packingDate).toLocaleString() : "-"} />
-            <SummaryItem label="Ethernet" value={device.ethernetStatus} />
-            <SummaryItem label="ICCID-2 Status" value={device.siM2Status} />
-            <SummaryItem label="Wi-Fi Status" value={device.wifiStatus} />
-            <SummaryItem label="Shipment Date Time" value={device.shipmentDate ? new Date(device.shipmentDate).toLocaleString() : "-"} />
-            <SummaryItem label="Modem/LTE" value={device.modemStatus} />
-            <SummaryItem label="RMA Device" value={device.rmaDevice} />
-            <SummaryItem label="ICCID-1" value={device.siM1} />
-            <SummaryItem label="SIM-2 Service Plan" value={device.siM2ServicePlan} />
-            <SummaryItem label="Carrier-1 Name" value={device.carrier1Name} />
-            <SummaryItem label="ICCID-2 Provisioning Date Time" value={device.siM2ProvisioningDate ? new Date(device.siM2ProvisioningDate).toLocaleString() : "-"} />
-            <SummaryItem label="SIM-1 IMSI" value={device.siM1Imsi} />
-            <SummaryItem label="Registered Device Date Time" value={device.deviceRegisteredDate ? new Date(device.deviceRegisteredDate).toLocaleString() : "-"} />
-            <SummaryItem label="ICCID-1 Status" value={device.siM1Status} />
+        <CardContent className="p-6 space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Device Information */}
+            <SummaryCard title="Device Information">
+              <SummaryRow label="MAC" value={device.mac} />
+              <SummaryRow label="Device Serial Number" value={device.deviceSerialNumber} />
+              <SummaryRow label="Battery Serial Number" value="-" />
+              <SummaryRow label="Product Name" value={device.productName} />
+              <SummaryRow label="Device Model" value={device.deviceModel} />
+              <SummaryRow label="Device Status" value={device.deviceStatus} />
+              <SummaryRow label="Router Online" value={device.routerStatus} />
+            </SummaryCard>
+
+            {/* Fulfilment Information */}
+            <SummaryCard title="Fulfilment Information">
+              <SummaryRow label="ASN Inserted Date Time" value={device.asnInsertedDate ? new Date(device.asnInsertedDate).toLocaleString() : "-"} />
+              <SummaryRow label="Packing Date Time" value={device.packingDate ? new Date(device.packingDate).toLocaleString() : "-"} />
+              <SummaryRow label="Shipment Date Time" value={device.shipmentDate ? new Date(device.shipmentDate).toLocaleString() : "-"} />
+              <SummaryRow label="Registered Device Date Time" value={device.deviceRegisteredDate ? new Date(device.deviceRegisteredDate).toLocaleString() : "-"} />
+              <SummaryRow label="RMA Device" value={device.rmaDevice || "No"} />
+              <SummaryRow 
+                label="EIS Status" 
+                customValue={<StatusBreadcrumb items={["Loaded", "Packaged", "Shipped"]} activeIndex={0} />} 
+              />
+              <SummaryRow 
+                label="Wi-Fi Configuration" 
+                customValue={<StatusBreadcrumb items={["Config", "Cert", "Patch"]} activeIndex={-1} />} 
+              />
+            </SummaryCard>
+
+            {/* Carrier 1 (Verizon) */}
+            <SummaryCard title={device.carrier1Name || "Verizon"}>
+              <SummaryRow label="ICCID-1" value={device.siM1} />
+              <SummaryRow label="SIM-1 IMSI" value={device.siM1Imsi} />
+              <SummaryRow label="SIM-1 Service Plan" value={device.siM1ServicePlan} />
+              <SummaryRow label="ICCID-1 Status" value={device.siM1Status} />
+              <SummaryRow label="ICCID-1 Provisioning Date Time" value={device.siM1ProvisioningDate ? new Date(device.siM1ProvisioningDate).toLocaleString() : "-"} />
+            </SummaryCard>
+
+            {/* Carrier 2 (AT&T) */}
+            <SummaryCard title={device.carrier2Name || "AT&T"}>
+              <SummaryRow label="ICCID-2" value={device.siM2} />
+              <SummaryRow label="SIM-2 IMSI" value={device.siM2Imsi} />
+              <SummaryRow label="SIM-2 Service Plan" value={device.siM2ServicePlan} />
+              <SummaryRow label="ICCID-2 Status" value={device.siM2Status} />
+              <SummaryRow label="ICCID-2 Provisioning Date Time" value={device.siM2ProvisioningDate ? new Date(device.siM2ProvisioningDate).toLocaleString() : "-"} />
+            </SummaryCard>
+
+            {/* Connection Status */}
+            <SummaryCard title="Connection Status">
+              <SummaryRow label="Ethernet" value={device.ethernetStatus} />
+              <SummaryRow label="Wi-Fi Status" value={device.wifiStatus} />
+              <SummaryRow label="Modem/LTE" value={device.modemStatus} />
+              <SummaryRow label="Last Message Date Time" value={device.lastMessageReceivedDate ? new Date(device.lastMessageReceivedDate).toLocaleString() : "-"} />
+            </SummaryCard>
           </div>
 
-          <div className="mt-8">
+          <div className="pt-4">
             {!showActivities ? (
               <Button 
                 onClick={handleLoadActivities} 
-                className="bg-[#0089D1] text-white hover:bg-[#0077B5] border-none"
+                className="bg-[#6366f1] text-white hover:bg-[#4f46e5] border-none h-10 px-6 rounded-md"
                 disabled={loadingActivities}
               >
                 {loadingActivities && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -155,10 +277,21 @@ export default function DeviceDetail() {
           <Accordion type="single" collapsible className="w-full space-y-2">
             <AccordionItem value="router-alerts" className="border border-slate-200 bg-white rounded-md overflow-hidden">
               <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-slate-50 text-sm font-medium text-slate-700">
-                Router Alerts {routerAlerts.length > 0 && `(${routerAlerts.length})`}
+                Router Alerts {alertsTotalRecords > 0 && `(${alertsTotalRecords})`}
               </AccordionTrigger>
               <AccordionContent className="px-4 pb-4">
-                <RouterAlertsTable data={routerAlerts} />
+                <RouterAlertsTable 
+                  data={routerAlerts} 
+                  sortColumn={alertsSortColumn}
+                  sortOrder={alertsSortOrder}
+                  onSort={handleAlertsSort}
+                  pageIndex={alertsPageIndex}
+                  pageSize={alertsPageSize}
+                  totalPages={alertsTotalPages}
+                  totalRecords={alertsTotalRecords}
+                  onPageChange={setAlertsPageIndex}
+                  onPageSizeChange={setAlertsPageSize}
+                />
               </AccordionContent>
             </AccordionItem>
 
@@ -173,10 +306,21 @@ export default function DeviceDetail() {
 
             <AccordionItem value="sim-activities" className="border border-slate-200 bg-white rounded-md overflow-hidden">
               <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-slate-50 text-sm font-medium text-slate-700">
-                SIM Activity Details {simActivities.length > 0 && `(${simActivities.length})`}
+                SIM Activity Details {simTotalRecords > 0 && `(${simTotalRecords})`}
               </AccordionTrigger>
               <AccordionContent className="px-4 pb-4">
-                <SIMActivitiesTable data={simActivities} />
+                <SIMActivitiesTable 
+                  data={simActivities} 
+                  sortColumn={simSortColumn}
+                  sortOrder={simSortOrder}
+                  onSort={handleSimSort}
+                  pageIndex={simPageIndex}
+                  pageSize={simPageSize}
+                  totalPages={simTotalPages}
+                  totalRecords={simTotalRecords}
+                  onPageChange={setSimPageIndex}
+                  onPageSizeChange={setSimPageSize}
+                />
               </AccordionContent>
             </AccordionItem>
 
@@ -204,7 +348,22 @@ export default function DeviceDetail() {
   );
 }
 
-function SIMActivitiesTable({ data }: { data: SIMActivity[] }) {
+interface TableProps<T> {
+  data: T[];
+  sortColumn: string | null;
+  sortOrder: string | null;
+  onSort: (column: string) => void;
+  pageIndex: number;
+  pageSize: number;
+  totalPages: number;
+  totalRecords: number;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (size: number) => void;
+}
+
+function SIMActivitiesTable({ 
+  data, sortColumn, sortOrder, onSort, pageIndex, pageSize, totalPages, totalRecords, onPageChange, onPageSizeChange 
+}: TableProps<SIMActivity>) {
   if (data.length === 0) {
     return <div className="text-sm text-slate-500 italic py-4">No SIM activities found for this device.</div>;
   }
@@ -214,11 +373,21 @@ function SIMActivitiesTable({ data }: { data: SIMActivity[] }) {
       <Table>
         <TableHeader className="bg-slate-50">
           <TableRow>
-            <TableHead className="text-xs font-bold uppercase text-slate-600">ICCID</TableHead>
+            <TableHead 
+              className="text-xs font-bold uppercase text-slate-600 cursor-pointer hover:bg-slate-100"
+              onClick={() => onSort("iccId")}
+            >
+              ICCID {sortColumn === "iccId" && (sortOrder === "asc" ? "↑" : "↓")}
+            </TableHead>
             <TableHead className="text-xs font-bold uppercase text-slate-600">SIM Status</TableHead>
             <TableHead className="text-xs font-bold uppercase text-slate-600">Command Action</TableHead>
             <TableHead className="text-xs font-bold uppercase text-slate-600">Requested By</TableHead>
-            <TableHead className="text-xs font-bold uppercase text-slate-600">Requested Date</TableHead>
+            <TableHead 
+              className="text-xs font-bold uppercase text-slate-600 cursor-pointer hover:bg-slate-100"
+              onClick={() => onSort("requestedDate")}
+            >
+              Requested Date {sortColumn === "requestedDate" && (sortOrder === "asc" ? "↑" : "↓")}
+            </TableHead>
             <TableHead className="text-xs font-bold uppercase text-slate-600">Processed By</TableHead>
             <TableHead className="text-xs font-bold uppercase text-slate-600">Processed Date</TableHead>
           </TableRow>
@@ -241,11 +410,51 @@ function SIMActivitiesTable({ data }: { data: SIMActivity[] }) {
           ))}
         </TableBody>
       </Table>
+      
+      {/* Pagination */}
+      <div className="p-3 border-t border-slate-200 flex items-center justify-between bg-white">
+        <div className="text-[10px] text-slate-500 uppercase font-bold">
+          Showing {pageIndex * pageSize + 1} to {Math.min((pageIndex + 1) * pageSize, totalRecords)} of {totalRecords}
+        </div>
+        <div className="flex items-center gap-2">
+          <select 
+            className="text-xs border border-slate-200 rounded px-1 py-0.5"
+            value={pageSize}
+            onChange={(e) => onPageSizeChange(Number(e.target.value))}
+          >
+            {[10, 25, 50].map(size => (
+              <option key={size} value={size}>{size}</option>
+            ))}
+          </select>
+          <div className="flex gap-1">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="h-7 px-2 text-xs"
+              disabled={pageIndex === 0}
+              onClick={() => onPageChange(pageIndex - 1)}
+            >
+              Prev
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="h-7 px-2 text-xs"
+              disabled={pageIndex >= totalPages - 1}
+              onClick={() => onPageChange(pageIndex + 1)}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
-function RouterAlertsTable({ data }: { data: RouterAlert[] }) {
+function RouterAlertsTable({ 
+  data, sortColumn, sortOrder, onSort, pageIndex, pageSize, totalPages, totalRecords, onPageChange, onPageSizeChange 
+}: TableProps<RouterAlert>) {
   if (data.length === 0) {
     return <div className="text-sm text-slate-500 italic py-4">No router alerts found for this device.</div>;
   }
@@ -255,7 +464,12 @@ function RouterAlertsTable({ data }: { data: RouterAlert[] }) {
       <Table>
         <TableHeader className="bg-slate-50">
           <TableRow>
-            <TableHead className="text-xs font-bold uppercase text-slate-600">Updated Date</TableHead>
+            <TableHead 
+              className="text-xs font-bold uppercase text-slate-600 cursor-pointer hover:bg-slate-100"
+              onClick={() => onSort("updatedDate")}
+            >
+              Updated Date {sortColumn === "updatedDate" && (sortOrder === "asc" ? "↑" : "↓")}
+            </TableHead>
             <TableHead className="text-xs font-bold uppercase text-slate-600">Processed Date</TableHead>
             <TableHead className="text-xs font-bold uppercase text-slate-600">Router Status</TableHead>
             <TableHead className="text-xs font-bold uppercase text-slate-600">Ethernet</TableHead>
@@ -284,6 +498,44 @@ function RouterAlertsTable({ data }: { data: RouterAlert[] }) {
           ))}
         </TableBody>
       </Table>
+
+      {/* Pagination */}
+      <div className="p-3 border-t border-slate-200 flex items-center justify-between bg-white">
+        <div className="text-[10px] text-slate-500 uppercase font-bold">
+          Showing {pageIndex * pageSize + 1} to {Math.min((pageIndex + 1) * pageSize, totalRecords)} of {totalRecords}
+        </div>
+        <div className="flex items-center gap-2">
+          <select 
+            className="text-xs border border-slate-200 rounded px-1 py-0.5"
+            value={pageSize}
+            onChange={(e) => onPageSizeChange(Number(e.target.value))}
+          >
+            {[10, 25, 50].map(size => (
+              <option key={size} value={size}>{size}</option>
+            ))}
+          </select>
+          <div className="flex gap-1">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="h-7 px-2 text-xs"
+              disabled={pageIndex === 0}
+              onClick={() => onPageChange(pageIndex - 1)}
+            >
+              Prev
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="h-7 px-2 text-xs"
+              disabled={pageIndex >= totalPages - 1}
+              onClick={() => onPageChange(pageIndex + 1)}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

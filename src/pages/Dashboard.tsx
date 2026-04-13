@@ -1,6 +1,7 @@
 import { APIDevice, getAllDevices, getDashboardSummary, DeviceSummaryMetric } from "@/src/services/api";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Search, Filter, Download, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -14,27 +15,68 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Pagination, Search, Sort State
+  const [pageIndex, setPageIndex] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+  const [searchText, setSearchText] = useState("");
+  const [sortColumn, setSortColumn] = useState("");
+  const [sortOrder, setSortOrder] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  // Debounce search input
   useEffect(() => {
-    const fetchData = async () => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchText);
+      setPageIndex(0); // Reset to first page on search
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchText]);
+
+  useEffect(() => {
+    const fetchSummary = async () => {
+      try {
+        const summaryData = await getDashboardSummary();
+        setSummary(summaryData);
+      } catch (err) {
+        console.error("Failed to load summary:", err);
+      }
+    };
+    fetchSummary();
+  }, []);
+
+  useEffect(() => {
+    const fetchDevices = async () => {
       try {
         setLoading(true);
-        const [devicesData, summaryData] = await Promise.all([
-          getAllDevices(),
-          getDashboardSummary()
-        ]);
+        const devicesData = await getAllDevices(
+          pageIndex,
+          pageSize,
+          sortColumn,
+          sortOrder,
+          debouncedSearch
+        );
         setDevices(devicesData);
-        setSummary(summaryData);
         setError(null);
       } catch (err) {
-        setError("Failed to load data. Please ensure you are authenticated.");
+        setError("Failed to load devices. Please ensure you are authenticated.");
         console.error(err);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
-  }, []);
+    fetchDevices();
+  }, [pageIndex, pageSize, sortColumn, sortOrder, debouncedSearch]);
+
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumn(column);
+      setSortOrder("asc");
+    }
+    setPageIndex(0);
+  };
 
   const getMetric = (name: string) => {
     const metric = summary.find(m => m.deviceSummaryName === name);
@@ -42,6 +84,7 @@ export default function Dashboard() {
   };
 
   const totalRecords = devices.length > 0 ? devices[0].totalRows : 0;
+  const totalPages = Math.ceil(totalRecords / pageSize);
   const onlineCount = summary.find(m => m.deviceSummaryName === "onlineRouterCount")?.deviceSummaryValue || "0";
   const offlineCount = summary.find(m => m.deviceSummaryName === "offlineRouterCount")?.deviceSummaryValue || "0";
   const activeCount = summary.find(m => m.deviceSummaryName === "activeDeviceCount")?.deviceSummaryValue || "0";
@@ -94,7 +137,12 @@ export default function Dashboard() {
           <div className="flex items-center gap-2 w-full md:w-auto">
             <div className="relative w-full md:w-64">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-400" />
-              <Input placeholder="Search by MAC, Product Name..." className="pl-8 h-9 text-sm" />
+              <Input 
+                placeholder="Search by MAC, Product Name..." 
+                className="pl-8 h-9 text-sm" 
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+              />
             </div>
             <button className="p-2 hover:bg-slate-100 rounded-md border border-slate-200">
               <Filter className="h-4 w-4 text-slate-600" />
@@ -117,56 +165,110 @@ export default function Dashboard() {
               <p className="text-slate-500 text-sm">The API requires a valid Azure AD token. Please ensure you are logged in.</p>
             </div>
           ) : (
-            <Table>
-              <TableHeader className="bg-slate-50">
-                <TableRow>
-                  <TableHead className="w-[50px]"></TableHead>
-                  <TableHead className="text-xs font-bold uppercase text-slate-600">MAC</TableHead>
-                  <TableHead className="text-xs font-bold uppercase text-slate-600">Product Name</TableHead>
-                  <TableHead className="text-xs font-bold uppercase text-slate-600">Package Status</TableHead>
-                  <TableHead className="text-xs font-bold uppercase text-slate-600">Device Status</TableHead>
-                  <TableHead className="text-xs font-bold uppercase text-slate-600">SIM1</TableHead>
-                  <TableHead className="text-xs font-bold uppercase text-slate-600">SIM1 Status</TableHead>
-                  <TableHead className="text-xs font-bold uppercase text-slate-600">Router Status</TableHead>
-                  <TableHead className="text-xs font-bold uppercase text-slate-600">Ethernet</TableHead>
-                  <TableHead className="text-xs font-bold uppercase text-slate-600">Wi-Fi Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {devices.map((device) => (
-                  <TableRow 
-                    key={device.deviceId} 
-                    className="hover:bg-slate-50 cursor-pointer transition-colors"
-                    onClick={() => navigate(`/device/${encodeURIComponent(device.mac)}`, { state: { deviceId: device.deviceId } })}
-                  >
-                    <TableCell>
-                      <input type="checkbox" className="rounded border-slate-300" onClick={(e) => e.stopPropagation()} />
-                    </TableCell>
-                    <TableCell className="font-medium text-blue-600 hover:underline">{device.mac}</TableCell>
-                    <TableCell className="text-sm">{device.productName || '-'}</TableCell>
-                    <TableCell className="text-sm">{device.packageStatus || '-'}</TableCell>
-                    <TableCell>
-                      <Badge variant={device.deviceStatusName === 'Active' ? 'default' : 'secondary'} className="text-[10px] uppercase font-bold">
-                        {device.deviceStatusName}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm font-mono">{device.siM1 || '-'}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={`text-[10px] uppercase font-bold ${device.siM1Status === 'Activated' ? 'border-green-200 text-green-700 bg-green-50' : 'border-slate-200 text-slate-600 bg-slate-50'}`}>
-                        {device.siM1Status || 'N/A'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <span className={`text-sm font-medium ${device.routerStatus === 'Online' ? 'text-green-600' : 'text-slate-400'}`}>
-                        {device.routerStatus || 'Offline'}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-sm">{device.ethernetStatus || '-'}</TableCell>
-                    <TableCell className="text-sm">{device.wifiStatus || '-'}</TableCell>
+            <>
+              <Table>
+                <TableHeader className="bg-slate-50">
+                  <TableRow>
+                    <TableHead className="w-[50px]"></TableHead>
+                    <TableHead 
+                      className="text-xs font-bold uppercase text-slate-600 cursor-pointer hover:bg-slate-100"
+                      onClick={() => handleSort("mac")}
+                    >
+                      MAC {sortColumn === "mac" && (sortOrder === "asc" ? "↑" : "↓")}
+                    </TableHead>
+                    <TableHead 
+                      className="text-xs font-bold uppercase text-slate-600 cursor-pointer hover:bg-slate-100"
+                      onClick={() => handleSort("productName")}
+                    >
+                      Product Name {sortColumn === "productName" && (sortOrder === "asc" ? "↑" : "↓")}
+                    </TableHead>
+                    <TableHead className="text-xs font-bold uppercase text-slate-600">Package Status</TableHead>
+                    <TableHead className="text-xs font-bold uppercase text-slate-600">Device Status</TableHead>
+                    <TableHead className="text-xs font-bold uppercase text-slate-600">SIM1</TableHead>
+                    <TableHead className="text-xs font-bold uppercase text-slate-600">SIM1 Status</TableHead>
+                    <TableHead className="text-xs font-bold uppercase text-slate-600">Router Status</TableHead>
+                    <TableHead className="text-xs font-bold uppercase text-slate-600">Ethernet</TableHead>
+                    <TableHead className="text-xs font-bold uppercase text-slate-600">Wi-Fi Status</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {devices.map((device) => (
+                    <TableRow 
+                      key={device.deviceId} 
+                      className="hover:bg-slate-50 cursor-pointer transition-colors"
+                      onClick={() => navigate(`/device/${encodeURIComponent(device.mac)}`, { state: { deviceId: device.deviceId } })}
+                    >
+                      <TableCell>
+                        <input type="checkbox" className="rounded border-slate-300" onClick={(e) => e.stopPropagation()} />
+                      </TableCell>
+                      <TableCell className="font-medium text-blue-600 hover:underline">{device.mac}</TableCell>
+                      <TableCell className="text-sm">{device.productName || '-'}</TableCell>
+                      <TableCell className="text-sm">{device.packageStatus || '-'}</TableCell>
+                      <TableCell>
+                        <Badge variant={device.deviceStatusName === 'Active' ? 'default' : 'secondary'} className="text-[10px] uppercase font-bold">
+                          {device.deviceStatusName}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm font-mono">{device.siM1 || '-'}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={`text-[10px] uppercase font-bold ${device.siM1Status === 'Activated' ? 'border-green-200 text-green-700 bg-green-50' : 'border-slate-200 text-slate-600 bg-slate-50'}`}>
+                          {device.siM1Status || 'N/A'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <span className={`text-sm font-medium ${device.routerStatus === 'Online' ? 'text-green-600' : 'text-slate-400'}`}>
+                          {device.routerStatus || 'Offline'}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-sm">{device.ethernetStatus || '-'}</TableCell>
+                      <TableCell className="text-sm">{device.wifiStatus || '-'}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              
+              {/* Pagination Controls */}
+              <div className="p-4 border-t border-slate-200 flex items-center justify-between bg-white">
+                <div className="text-sm text-slate-500">
+                  Showing {pageIndex * pageSize + 1} to {Math.min((pageIndex + 1) * pageSize, totalRecords)} of {totalRecords} entries
+                </div>
+                <div className="flex items-center gap-2">
+                  <select 
+                    className="text-sm border border-slate-200 rounded px-2 py-1"
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setPageIndex(0);
+                    }}
+                  >
+                    {[10, 25, 50, 100].map(size => (
+                      <option key={size} value={size}>{size} per page</option>
+                    ))}
+                  </select>
+                  <div className="flex gap-1">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      disabled={pageIndex === 0}
+                      onClick={() => setPageIndex(prev => prev - 1)}
+                    >
+                      Previous
+                    </Button>
+                    <div className="flex items-center px-4 text-sm font-medium">
+                      Page {pageIndex + 1} of {totalPages || 1}
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      disabled={pageIndex >= totalPages - 1}
+                      onClick={() => setPageIndex(prev => prev + 1)}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </>
           )}
         </div>
       </Card>
