@@ -1,9 +1,10 @@
 import { environment } from "../environments/environment";
 
-const TEMP_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6IlUxc1g4WUZIUzdaNlZsN1ZITEl6VGVqYnZqMCIsImtpZCI6IlUxc1g4WUZIUzdaNlZsN1ZITEl6VGVqYnZqMCJ9.eyJhdWQiOiJhcGk6Ly8yNGI5ZGU0Yy01MjdiLTRlZjgtOTkxZi02YWE2MTYyMjQ4ZmMiLCJpc3MiOiJodHRwczovL3N0cy53aW5kb3dzLm5ldC84Njg3Y2JmNC03YjRjLTQ3M2UtOWVhZi02ZTJlOThkMzI5Y2YvIiwiaWF0IjoxNzc2MDg5MTQ3LCJuYmYiOjE3NzYwODkxNDcsImV4cCI6MTc3NjA5NDEwMywiYWNyIjoiMSIsImFpbyI6IkFaUUFhLzhiQUFBQUN0OGNEd1A1OHIwa1ozMkNGSzVDTU0rNUFLUU82aUtWYVF0YU5YeDNmNTB2bmxQcURmVFdaZkxhdVMxVnk0TFZrWWN2cVMrVW84eUF6UFF4bHlGNVJDZzRlSTlhWTJkaHNwdFNXOHBDT3RVZXltNVhBNHI4alFzRHNCNElTRVNXc2FtVzVTRkxoZ0UwVmhDOW9rWlBLK21wYUZQYzNIQitqN2puNHhHOFVyU3M2Vm4yNCt6QlZWSVR4RWt4RVZtUiIsImFtciI6WyJtZmEiXSwiYXBwaWQiOiI5ZjdjMjE4Ni03NDMyLTQ3ZDgtYjYwNC0xNTVhZTY2YmFlZDQiLCJhcHBpZGFjciI6IjAiLCJlbWFpbCI6InNhbmRlZXBAdGhpbmd2ZXJzZS5haSIsImZhbWlseV9uYW1lIjoiVHJpZ3VuYXlhdCIsImdpdmVuX25hbWUiOiJTYW5kZWVwIiwiaXBhZGRyIjoiMTExLjkzLjEwOC41MCIsIm5hbWUiOiJTYW5kZWVwIFRyaWd1bmF5YXQiLCJvaWQiOiI2MGMxYmVlNC0yN2IzLTRhZjAtOTM1ZS1kNjI0ZWY3NDc2MzciLCJyaCI6IjEuQVdFQjlNdUhoa3g3UGtlZXIyNHVtTk1wejB6ZXVTUjdVdmhPbVI5cXBoWWlTUHpXQUJ0aEFRLiIsInNjcCI6ImRldi1iYWNrb2ZmaWNlIiwic2lkIjoiMDAzZjBjYmEtNTEyOS0wZTg5LTMzNmBeNWJiNWU3ZTRkMzYxIiwic3ViIjoidUNIbFJVSTEtY3ZoZUZabTVoc01iTkhZal9DM0lybE5lZWlpY1dPalZkZyIsInRpZCI6Ijg2ODdjYmY0LTdiNGMtNDczZS05ZWFmLTZlMmU5OGQzMjljZiIsInVuaXF1ZV9uYW1lIjoic2FuZGVlcEB0aGluZ3ZlcnNlLmFpIiwidXBuIjoic2FuZGVlcEB0aGluZ3ZlcnNlLmFpIiwidXRpIjoiWFhaYkZXbkw1a2FxenIzOURqa0tBQSIsInZlciI6IjEuMCIsInhtc19mdGQiOiJzWUVudlZoWm5keXBCcVVsRTFJZ3hUYmMxVE9ES0VTWTJSY2FBd1dLVlhJQmRYTjNaWE4wTXkxa2MyMXoifQ.fEv_ddJ9pcedvQe9CXln7mPq67_3Pe6sce5_muHpv7qhpP6XL4gPWNIfxYwj0OV1vL1dPRJhH_sRe66Qrg7Ff_nCv7VxPZtpagA932K2WIs64GzybHKCfnY9BUzxBZjEU0lQBbjzAE39_4AODJyhwNyCStkJXqGxjiN8cCS5GZdwU9EAyOw0uWAoBGrIbTAAVYC4b1R4VPvWPaVc3trePYQnmckeqUAc_OT3gDFYgqvBR4WfiPToFwanBu81vjj0vDR3DjYpQwL80zgslUMHxfRe6IUxVxFnGOKXtKfBP0OUV2g8Crl8CJ0cQqpkwXIN85Ql4j1owhVMrT06nVH1nA";
+const APIM_KEY = "9ce610d6358b48a6895c687a24d41a27";
 
-const getHeaders = (extraHeaders = {}) => ({
-  "Authorization": `Bearer ${TEMP_TOKEN}`,
+const getHeaders = (accessToken: string, extraHeaders = {}) => ({
+  "Authorization": `Bearer ${accessToken}`,
+  "ocp-apim-subscription-key": `${APIM_KEY}`,
   ...extraHeaders
 });
 
@@ -50,6 +51,7 @@ export interface APIDevice {
 }
 
 export const getAllDevices = async (
+  accessToken: string,
   pageIndex = 0, 
   pageSize = 10, 
   sortColumn = "", 
@@ -60,7 +62,7 @@ export const getAllDevices = async (
   
   try {
     const response = await fetch(url, {
-      headers: getHeaders()
+      headers: getHeaders(accessToken)
     });
     if (!response.ok) {
       throw new Error('Failed to fetch devices');
@@ -85,6 +87,7 @@ export interface RouterAlert {
 }
 
 export const getRouterAlerts = async (
+  accessToken: string,
   deviceId: number, 
   pageIndex = 0, 
   pageSize = 10,
@@ -96,7 +99,7 @@ export const getRouterAlerts = async (
   try {
     const response = await fetch(url, {
       method: 'PUT',
-      headers: getHeaders({
+      headers: getHeaders(accessToken, {
         'Content-Type': 'application/json',
       }),
       body: JSON.stringify({
@@ -130,6 +133,7 @@ export interface SIMActivity {
 }
 
 export const getSIMActivities = async (
+  accessToken: string,
   deviceId: number, 
   pageIndex = 0, 
   pageSize = 10,
@@ -141,7 +145,7 @@ export const getSIMActivities = async (
   try {
     const response = await fetch(url, {
       method: 'PUT',
-      headers: getHeaders({
+      headers: getHeaders(accessToken, {
         'Content-Type': 'application/json',
       }),
       body: JSON.stringify({
@@ -173,11 +177,11 @@ export interface DeviceSummaryMetric {
   lastUpdatedOn: string | null;
 }
 
-export const getDashboardSummary = async (customerAccountId = 1): Promise<DeviceSummaryMetric[]> => {
+export const getDashboardSummary = async (accessToken: string, customerAccountId = 1): Promise<DeviceSummaryMetric[]> => {
   const url = `${environment.API_BASE_URL_DEVICEMANAGEMENT}Device/GetDeviceSummaryByCustomerAccountId/${customerAccountId}`;
   try {
     const response = await fetch(url, {
-      headers: getHeaders()
+      headers: getHeaders(accessToken)
     });
     if (!response.ok) throw new Error('Failed to fetch dashboard summary');
     return await response.json();
@@ -226,11 +230,11 @@ export interface APIDeviceDetail {
   batteryHealth: number;
 }
 
-export const getDeviceDetailById = async (deviceId: number, customerAccountId = 1): Promise<APIDeviceDetail | null> => {
+export const getDeviceDetailById = async (accessToken: string, deviceId: number, customerAccountId = 1): Promise<APIDeviceDetail | null> => {
   const url = `${environment.API_BASE_URL_DEVICEMANAGEMENT}Device/GetDeviceActivityDataByDeviceId/${customerAccountId}/${deviceId}`;
   try {
     const response = await fetch(url, {
-      headers: getHeaders()
+      headers: getHeaders(accessToken)
     });
     if (!response.ok) throw new Error('Failed to fetch device detail');
     return await response.json();
