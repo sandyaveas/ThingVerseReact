@@ -7,15 +7,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ChevronLeft, Loader2 } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
-import { useMsal } from "@azure/msal-react";
-import { loginRequest } from "../authConfig";
 
 export default function DeviceDetail() {
   const { mac } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const deviceId = location.state?.deviceId;
-  const { instance, accounts } = useMsal();
   
   const [device, setDevice] = useState<APIDeviceDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -36,28 +33,12 @@ export default function DeviceDetail() {
   const [simSortColumn, setSimSortColumn] = useState<string | null>(null);
   const [simSortOrder, setSimSortOrder] = useState<string | null>(null);
 
-  const getAccessToken = async (): Promise<string> => {
-    try {
-      const response = await instance.acquireTokenSilent({
-        ...loginRequest,
-        account: accounts[0],
-      });
-      return response.accessToken;
-    } catch (error) {
-      console.error("Failed to acquire token silently:", error);
-      // Try interactive login
-      const response = await instance.acquireTokenRedirect(loginRequest);
-      return response.accessToken;
-    }
-  };
-
   useEffect(() => {
     const fetchDeviceDetail = async () => {
       if (deviceId) {
         try {
           setLoading(true);
-          const token = await getAccessToken();
-          const data = await getDeviceDetailById(token, deviceId);
+          const data = await getDeviceDetailById(deviceId);
           setDevice(data);
         } catch (error) {
           console.error("Failed to fetch device detail:", error);
@@ -68,16 +49,14 @@ export default function DeviceDetail() {
     };
 
     fetchDeviceDetail();
-  }, [deviceId, instance, accounts]);
+  }, [deviceId]);
 
   // Fetch Router Alerts
   useEffect(() => {
     if (showActivities && deviceId) {
       const fetchAlerts = async () => {
         try {
-          const token = await getAccessToken();
           const alerts = await getRouterAlerts(
-            token,
             deviceId, 
             alertsPageIndex, 
             alertsPageSize, 
@@ -91,16 +70,14 @@ export default function DeviceDetail() {
       };
       fetchAlerts();
     }
-  }, [showActivities, deviceId, alertsPageIndex, alertsPageSize, alertsSortColumn, alertsSortOrder, instance, accounts]);
+  }, [showActivities, deviceId, alertsPageIndex, alertsPageSize, alertsSortColumn, alertsSortOrder]);
 
   // Fetch SIM Activities
   useEffect(() => {
     if (showActivities && deviceId) {
       const fetchSims = async () => {
         try {
-          const token = await getAccessToken();
           const sims = await getSIMActivities(
-            token,
             deviceId, 
             simPageIndex, 
             simPageSize, 
@@ -114,7 +91,7 @@ export default function DeviceDetail() {
       };
       fetchSims();
     }
-  }, [showActivities, deviceId, simPageIndex, simPageSize, simSortColumn, simSortOrder, instance, accounts]);
+  }, [showActivities, deviceId, simPageIndex, simPageSize, simSortColumn, simSortOrder]);
 
   const handleLoadActivities = () => {
     setShowActivities(true);

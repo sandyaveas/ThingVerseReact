@@ -101,16 +101,13 @@ export default function App() {
 }
 
 function AppContent() {
-  const isAuthenticated = useIsAuthenticated();
-
-  if (!isAuthenticated) {
-    return <LoginPage />;
-  }
+  // Authentication temporarily disabled for POC testing
+  const isAuthenticated = true; 
 
   return (
     <Layout>
       <Routes>
-        <Route path="/" element={<PlaceholderPage title="Dashboard" description="Thingverse Dashboard for all products." />} />
+        <Route path="/" element={<Dashboard />} />
         <Route path="/device-management" element={<Dashboard />} />
         <Route path="/device/:mac" element={<DeviceDetail />} />
         
