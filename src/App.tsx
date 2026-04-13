@@ -101,8 +101,11 @@ export default function App() {
 }
 
 function AppContent() {
-  // Authentication temporarily disabled for POC testing
-  const isAuthenticated = true; 
+  const isAuthenticated = useIsAuthenticated();
+
+  if (!isAuthenticated) {
+    return <LoginPage />;
+  }
 
   return (
     <Layout>
