@@ -7,9 +7,12 @@ import { Search, Filter, Download, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
+import { useMsal } from "@azure/msal-react";
+import { loginRequest } from "../authConfig";
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { instance, accounts } = useMsal();
   const [devices, setDevices] = useState<APIDevice[]>([]);
   const [summary, setSummary] = useState<DeviceSummaryMetric[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,23 +35,41 @@ export default function Dashboard() {
     return () => clearTimeout(timer);
   }, [searchText]);
 
+  const getAccessToken = async (): Promise<string> => {
+    try {
+      const response = await instance.acquireTokenSilent({
+        ...loginRequest,
+        account: accounts[0],
+      });
+      return response.accessToken;
+    } catch (error) {
+      console.error("Failed to acquire token silently:", error);
+      // Try interactive login
+      const response = await instance.acquireTokenRedirect(loginRequest);
+      return response.accessToken;
+    }
+  };
+
   useEffect(() => {
     const fetchSummary = async () => {
       try {
-        const summaryData = await getDashboardSummary();
+        const token = await getAccessToken();
+        const summaryData = await getDashboardSummary(token);
         setSummary(summaryData);
       } catch (err) {
         console.error("Failed to load summary:", err);
       }
     };
     fetchSummary();
-  }, []);
+  }, [instance, accounts]);
 
   useEffect(() => {
     const fetchDevices = async () => {
       try {
         setLoading(true);
+        const token = await getAccessToken();
         const devicesData = await getAllDevices(
+          token,
           pageIndex,
           pageSize,
           sortColumn,
@@ -66,7 +87,7 @@ export default function Dashboard() {
     };
 
     fetchDevices();
-  }, [pageIndex, pageSize, sortColumn, sortOrder, debouncedSearch]);
+  }, [pageIndex, pageSize, sortColumn, sortOrder, debouncedSearch, instance, accounts]);
 
   const handleSort = (column: string) => {
     if (sortColumn === column) {
