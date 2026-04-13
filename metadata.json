@@ -1,0 +1,6 @@
+{
+  "name": "ThingVerse Device Management POC",
+  "description": "A proof-of-concept for device management with Azure AD login, device listings, and detailed activity views.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
