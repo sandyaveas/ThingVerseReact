@@ -110,7 +110,7 @@ function AppContent() {
   return (
     <Layout>
       <Routes>
-        <Route path="/" element={<Dashboard />} />
+        <Route path="/" element={<PlaceholderPage title="Dashboard" description="Thingverse Dashboard for all products." />} />
         <Route path="/device-management" element={<Dashboard />} />
         <Route path="/device/:mac" element={<DeviceDetail />} />
         
