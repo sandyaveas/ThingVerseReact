@@ -74,54 +74,6 @@ export const getAllDevices = async (
   }
 };
 
-export interface EISActivity {
-  deviceId: string;
-  transactionID: string | null;
-  workflowCategoryName: string;
-  workflowTransactionId: number;
-  eisStatus: string;
-  lastUpdatedOn: string;
-  isProcessCompleted: boolean;
-  totalRows: number;
-}
-
-export const getEISActivitiesData = async (
-  accessToken: string,
-  deviceId: number,
-  pageIndex = 0,
-  pageSize = 10,
-  sortColumn = "",
-  sortOrder = "",
-  searchText = ""
-): Promise<EISActivity[]> => {
-  const url = `${environment.API_BASE_URL_DEVICEMANAGEMENT}Device/GetEISActivitiesData`;
-  
-  try {
-    const response = await fetch(url, {
-      method: 'PUT',
-      headers: getHeaders(accessToken, {
-        'Content-Type': 'application/json',
-      }),
-      body: JSON.stringify({
-        DeviceId: deviceId,
-        PageIndex: pageIndex,
-        PageSize: pageSize,
-        SortColumn: sortColumn,
-        SortOrder: sortOrder,
-        SearchText: searchText
-      })
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to fetch EIS activities');
-    }
-    return await response.json();
-  } catch (error) {
-    console.error('Error fetching EIS activities:', error);
-    return [];
-  }
-};
-
 export interface RouterAlert {
   mac: string;
   productName: string;

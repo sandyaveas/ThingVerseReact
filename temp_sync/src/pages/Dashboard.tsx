@@ -8,12 +8,11 @@ import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
 import { useMsal } from "@azure/msal-react";
-import { InteractionStatus } from "@azure/msal-browser";
 import { loginRequest } from "../authConfig";
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { instance, accounts, inProgress } = useMsal();
+  const { instance, accounts } = useMsal();
   const [devices, setDevices] = useState<APIDevice[]>([]);
   const [summary, setSummary] = useState<DeviceSummaryMetric[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,32 +36,17 @@ export default function Dashboard() {
   }, [searchText]);
 
   const getAccessToken = async (): Promise<string> => {
-    if (accounts.length === 0) {
-      throw new Error("No active account found. Please sign in.");
-    }
-
     try {
       const response = await instance.acquireTokenSilent({
         ...loginRequest,
         account: accounts[0],
       });
       return response.accessToken;
-    } catch (error: any) {
+    } catch (error) {
       console.error("Failed to acquire token silently:", error);
-      
-      // If interaction is already in progress, don't start another one
-      if (inProgress !== InteractionStatus.None) {
-        throw new Error("Interaction in progress. Please wait.");
-      }
-
       // Try interactive login
-      try {
-        const response = await instance.acquireTokenPopup(loginRequest);
-        return response.accessToken;
-      } catch (popupError: any) {
-        console.error("Popup login failed:", popupError);
-        throw popupError;
-      }
+      const response = await instance.acquireTokenRedirect(loginRequest);
+      return response.accessToken;
     }
   };
 

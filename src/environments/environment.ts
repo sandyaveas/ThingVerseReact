@@ -1,20 +1,20 @@
-const API_BASE_URL = 'https://localhost:';
+const API_BASE_URL = 'https://api-dev.thingverse.ai/';
 
 export const environment = {
     production: false,
     name: 'Local',
-    API_BASE_URL_ALARMS : API_BASE_URL + '2443/',
-    API_BASE_URL_ASSETS : API_BASE_URL + '7004/',
-    API_BASE_URL_CARRIERS : API_BASE_URL + '5443/',
-    API_BASE_URL_BASE : API_BASE_URL + '6443/',
-    API_BASE_URL_CUSTOMERACCOUNTS : API_BASE_URL + '7443/',
-    API_BASE_URL_DEVICEMANAGEMENT : API_BASE_URL + '9443/',
-    API_BASE_URL_INVENTORY : API_BASE_URL + '8443/',
-    API_BASE_URL_OEM : API_BASE_URL + '10443/',
-    API_BASE_URL_REPORTS : API_BASE_URL + '11443/',
-    API_BASE_URL_SERVICEACCOUNTS : API_BASE_URL + '13443/',
-    API_BASE_URL_SIM : API_BASE_URL + '14443/',
-    API_BASE_URL_USERMANAGEMENT : API_BASE_URL + '15443/',
-    API_BASE_URL_SSO : API_BASE_URL + '7079/',
+    API_BASE_URL_ALARMS : API_BASE_URL + 'alarms/',
+    API_BASE_URL_ASSETS : API_BASE_URL + 'assets/',
+    API_BASE_URL_CARRIERS : API_BASE_URL + 'carriers/',
+    API_BASE_URL_BASE : API_BASE_URL + 'base/',
+    API_BASE_URL_CUSTOMERACCOUNTS : API_BASE_URL + 'customeraccounts/',
+    API_BASE_URL_DEVICEMANAGEMENT : API_BASE_URL + 'devicemgmt/',
+    API_BASE_URL_INVENTORY : API_BASE_URL + 'inventory/',
+    API_BASE_URL_OEM : API_BASE_URL + 'oem/',
+    API_BASE_URL_REPORTS : API_BASE_URL + 'reports/',
+    API_BASE_URL_SERVICEACCOUNTS : API_BASE_URL + 'serviceaccounts/',
+    API_BASE_URL_SIM : API_BASE_URL + 'sim/',
+    API_BASE_URL_USERMANAGEMENT : API_BASE_URL + 'usermanagement/',
+    API_BASE_URL_SSO : API_BASE_URL + 'sso/',
     CLIENT_CODE: 'BackOfficeUI'
 };

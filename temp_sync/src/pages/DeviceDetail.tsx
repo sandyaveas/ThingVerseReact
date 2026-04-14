@@ -1,5 +1,5 @@
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { getDeviceDetail, mockActivities, getRouterAlerts, RouterAlert, getSIMActivities, SIMActivity, getDeviceDetailById, APIDeviceDetail, getEISActivitiesData, EISActivity } from "@/src/services/api";
+import { getDeviceDetail, mockActivities, getRouterAlerts, RouterAlert, getSIMActivities, SIMActivity, getDeviceDetailById, APIDeviceDetail } from "@/src/services/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -8,7 +8,6 @@ import { ChevronLeft, Loader2 } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { useMsal } from "@azure/msal-react";
-import { InteractionStatus } from "@azure/msal-browser";
 import { loginRequest } from "../authConfig";
 
 export default function DeviceDetail() {
@@ -16,7 +15,7 @@ export default function DeviceDetail() {
   const navigate = useNavigate();
   const location = useLocation();
   const deviceId = location.state?.deviceId;
-  const { instance, accounts, inProgress } = useMsal();
+  const { instance, accounts } = useMsal();
   
   const [device, setDevice] = useState<APIDeviceDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -37,40 +36,18 @@ export default function DeviceDetail() {
   const [simSortColumn, setSimSortColumn] = useState<string | null>(null);
   const [simSortOrder, setSimSortOrder] = useState<string | null>(null);
 
-  // EIS Activities State
-  const [eisActivities, setEisActivities] = useState<EISActivity[]>([]);
-  const [eisPageIndex, setEisPageIndex] = useState(0);
-  const [eisPageSize, setEisPageSize] = useState(10);
-  const [eisSortColumn, setEisSortColumn] = useState<string | null>(null);
-  const [eisSortOrder, setEisSortOrder] = useState<string | null>(null);
-
   const getAccessToken = async (): Promise<string> => {
-    if (accounts.length === 0) {
-      throw new Error("No active account found. Please sign in.");
-    }
-
     try {
       const response = await instance.acquireTokenSilent({
         ...loginRequest,
         account: accounts[0],
       });
       return response.accessToken;
-    } catch (error: any) {
+    } catch (error) {
       console.error("Failed to acquire token silently:", error);
-
-      // If interaction is already in progress, don't start another one
-      if (inProgress !== InteractionStatus.None) {
-        throw new Error("Interaction in progress. Please wait.");
-      }
-
       // Try interactive login
-      try {
-        const response = await instance.acquireTokenPopup(loginRequest);
-        return response.accessToken;
-      } catch (popupError: any) {
-        console.error("Popup login failed:", popupError);
-        throw popupError;
-      }
+      const response = await instance.acquireTokenRedirect(loginRequest);
+      return response.accessToken;
     }
   };
 
@@ -139,29 +116,6 @@ export default function DeviceDetail() {
     }
   }, [showActivities, deviceId, simPageIndex, simPageSize, simSortColumn, simSortOrder, instance, accounts]);
 
-  // Fetch EIS Activities
-  useEffect(() => {
-    if (showActivities && deviceId) {
-      const fetchEis = async () => {
-        try {
-          const token = await getAccessToken();
-          const eis = await getEISActivitiesData(
-            token,
-            deviceId,
-            eisPageIndex,
-            eisPageSize,
-            eisSortColumn,
-            eisSortOrder
-          );
-          setEisActivities(eis);
-        } catch (error) {
-          console.error("Failed to fetch EIS activities:", error);
-        }
-      };
-      fetchEis();
-    }
-  }, [showActivities, deviceId, eisPageIndex, eisPageSize, eisSortColumn, eisSortOrder, instance, accounts]);
-
   const handleLoadActivities = () => {
     setShowActivities(true);
   };
@@ -186,24 +140,11 @@ export default function DeviceDetail() {
     setSimPageIndex(0);
   };
 
-  const handleEisSort = (column: string) => {
-    if (eisSortColumn === column) {
-      setEisSortOrder(eisSortOrder === "asc" ? "desc" : "asc");
-    } else {
-      setEisSortColumn(column);
-      setEisSortOrder("asc");
-    }
-    setEisPageIndex(0);
-  };
-
   const alertsTotalRecords = routerAlerts.length > 0 ? routerAlerts[0].totalRows : 0;
   const alertsTotalPages = Math.ceil(alertsTotalRecords / alertsPageSize);
 
   const simTotalRecords = simActivities.length > 0 ? simActivities[0].totalRows : 0;
   const simTotalPages = Math.ceil(simTotalRecords / simPageSize);
-
-  const eisTotalRecords = eisActivities.length > 0 ? eisActivities[0].totalRows : 0;
-  const eisTotalPages = Math.ceil(eisTotalRecords / eisPageSize);
 
   const SummaryCard = ({ title, children }: { title: string, children: React.ReactNode }) => (
     <Card className="border-slate-200 shadow-sm overflow-hidden h-full">
@@ -268,19 +209,19 @@ export default function DeviceDetail() {
 
       <div className="flex justify-between items-center">
         <h1 className="text-xl font-bold text-slate-800">Activity View</h1>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => navigate(-1)} 
+          className="bg-[#6366f1] text-white hover:bg-[#4f46e5] border-none h-8 px-6 rounded-md"
+        >
+          Back
+        </Button>
       </div>
 
       <Card className="border-slate-200 shadow-sm">
-        <CardHeader className="bg-white border-b border-slate-100 py-3 flex flex-row items-center justify-between">
+        <CardHeader className="bg-white border-b border-slate-100 py-3">
           <CardTitle className="text-base font-bold text-slate-900">Summary:</CardTitle>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => navigate(-1)} 
-            className="bg-[#0089D1] text-white hover:bg-[#0077B5] border-none h-8 px-6 rounded-md"
-          >
-            Back
-          </Button>
         </CardHeader>
         <CardContent className="p-6 space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -408,21 +349,10 @@ export default function DeviceDetail() {
 
             <AccordionItem value="eis-transactions" className="border border-slate-200 bg-white rounded-md overflow-hidden">
               <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-slate-50 text-sm font-medium text-slate-700">
-                EIS Transactions {eisTotalRecords > 0 && `(${eisTotalRecords})`}
+                EIS Transactions
               </AccordionTrigger>
               <AccordionContent className="px-4 pb-4">
-                <EISActivitiesTable 
-                  data={eisActivities} 
-                  sortColumn={eisSortColumn}
-                  sortOrder={eisSortOrder}
-                  onSort={handleEisSort}
-                  pageIndex={eisPageIndex}
-                  pageSize={eisPageSize}
-                  totalPages={eisTotalPages}
-                  totalRecords={eisTotalRecords}
-                  onPageChange={setEisPageIndex}
-                  onPageSizeChange={setEisPageSize}
-                />
+                <ActivityTable data={mockActivities.eisTransactions} />
               </AccordionContent>
             </AccordionItem>
 
@@ -592,99 +522,6 @@ function RouterAlertsTable({
         </TableBody>
       </Table>
 
-      {/* Pagination */}
-      <div className="p-3 border-t border-slate-200 flex items-center justify-between bg-white">
-        <div className="text-[10px] text-slate-500 uppercase font-bold">
-          Showing {pageIndex * pageSize + 1} to {Math.min((pageIndex + 1) * pageSize, totalRecords)} of {totalRecords}
-        </div>
-        <div className="flex items-center gap-2">
-          <select 
-            className="text-xs border border-slate-200 rounded px-1 py-0.5"
-            value={pageSize}
-            onChange={(e) => onPageSizeChange(Number(e.target.value))}
-          >
-            {[10, 25, 50].map(size => (
-              <option key={size} value={size}>{size}</option>
-            ))}
-          </select>
-          <div className="flex gap-1">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="h-7 px-2 text-xs"
-              disabled={pageIndex === 0}
-              onClick={() => onPageChange(pageIndex - 1)}
-            >
-              Prev
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="h-7 px-2 text-xs"
-              disabled={pageIndex >= totalPages - 1}
-              onClick={() => onPageChange(pageIndex + 1)}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function EISActivitiesTable({ 
-  data, sortColumn, sortOrder, onSort, pageIndex, pageSize, totalPages, totalRecords, onPageChange, onPageSizeChange 
-}: TableProps<EISActivity>) {
-  if (data.length === 0) {
-    return <div className="text-sm text-slate-500 italic py-4">No EIS transactions found for this device.</div>;
-  }
-
-  return (
-    <div className="rounded-md border border-slate-200 overflow-hidden">
-      <Table>
-        <TableHeader className="bg-slate-50">
-          <TableRow>
-            <TableHead 
-              className="text-xs font-bold uppercase text-slate-600 cursor-pointer hover:bg-slate-100"
-              onClick={() => onSort("transactionID")}
-            >
-              Transaction ID {sortColumn === "transactionID" && (sortOrder === "asc" ? "↑" : "↓")}
-            </TableHead>
-            <TableHead className="text-xs font-bold uppercase text-slate-600">Workflow Category</TableHead>
-            <TableHead className="text-xs font-bold uppercase text-slate-600">Workflow Transaction ID</TableHead>
-            <TableHead className="text-xs font-bold uppercase text-slate-600">EIS Status</TableHead>
-            <TableHead 
-              className="text-xs font-bold uppercase text-slate-600 cursor-pointer hover:bg-slate-100"
-              onClick={() => onSort("lastUpdatedOn")}
-            >
-              Last Updated On {sortColumn === "lastUpdatedOn" && (sortOrder === "asc" ? "↑" : "↓")}
-            </TableHead>
-            <TableHead className="text-xs font-bold uppercase text-slate-600">Process Completed</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {data.map((item, index) => (
-            <TableRow key={index}>
-              <TableCell className="text-sm font-mono">{item.transactionID || "-"}</TableCell>
-              <TableCell className="text-sm font-medium">{item.workflowCategoryName}</TableCell>
-              <TableCell className="text-sm">{item.workflowTransactionId}</TableCell>
-              <TableCell>
-                <Badge variant="outline" className="text-[10px] uppercase font-bold border-blue-200 text-blue-700 bg-blue-50">
-                  {item.eisStatus}
-                </Badge>
-              </TableCell>
-              <TableCell className="text-sm font-mono">{new Date(item.lastUpdatedOn).toLocaleString()}</TableCell>
-              <TableCell>
-                <Badge variant={item.isProcessCompleted ? "default" : "secondary"} className="text-[10px] uppercase">
-                  {item.isProcessCompleted ? "Yes" : "No"}
-                </Badge>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      
       {/* Pagination */}
       <div className="p-3 border-t border-slate-200 flex items-center justify-between bg-white">
         <div className="text-[10px] text-slate-500 uppercase font-bold">

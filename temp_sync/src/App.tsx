@@ -45,7 +45,7 @@ function LoginPage() {
           </p>
           <Button 
             onClick={handleLogin}
-            className="w-full bg-[#0089D1] hover:bg-[#0077B5] text-white h-auto py-4 text-lg font-semibold rounded-lg transition-all transform hover:scale-[1.02]"
+            className="w-full bg-[#0089D1] hover:bg-[#0077B5] text-white py-6 text-lg font-semibold rounded-lg transition-all transform hover:scale-[1.02]"
           >
             Sign in with Microsoft
           </Button>
